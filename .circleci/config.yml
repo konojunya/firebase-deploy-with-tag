@@ -1,0 +1,89 @@
+version: 2.1
+
+references:
+  workspace_root: &workspace_root ~/workspace
+
+  docker_image: &docker_image
+    docker:
+      - image: circleci/openjdk:stretch-node-browsers-legacy
+
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+
+  yarn_cache_config: &yarn_cache_config
+    key: dependencies-{{ .Branch }}-{{ checksum "yarn.lock" }}-{{ checksum "package.json" }}
+    paths:
+      - .
+
+  yarn_restore_cache: &yarn_restore_cache
+    restore_cache:
+      <<: *yarn_cache_config
+      name: Restore yarn cache
+
+  yarn_save_cache: &yarn_save_cache
+    save_cache:
+      <<: *yarn_cache_config
+      name: Save yarn cache
+
+  deps: &deps
+    run:
+      name: Install Dependencies
+      command: yarn install --frozen-lockfile
+
+executors:
+  node_stage:
+    <<: *docker_image
+    working_directory: *workspace_root
+
+jobs:
+  setup:
+    executor: node_stage
+    steps:
+      - checkout
+      - *yarn_restore_cache
+      - *deps
+      - *yarn_save_cache
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - node_modules
+
+  run_test:
+    executor: node_stage
+    steps:
+      - checkout
+      - *attach_workspace
+      - run:
+          name: test
+          command: yarn test
+
+  deploy:
+    executor: node_stage
+    steps:
+      - checkout
+      - *attach_workspace
+      - run:
+          name: deploy to firebase hosting
+          command: |
+            yarn firebase use circelci-git-tag-deploy-test
+            yarn firebase deploy --token=$FIREBASE_TOKEN
+
+workflows:
+  build_and_test:
+    jobs:
+      - setup
+      - run_test:
+          requires:
+            - setup
+          filters:
+            tags:
+              only: /^v.*/
+      - deploy:
+          requires:
+            - run_test
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master

@@ -1,0 +1,5 @@
+{
+  "projects": {
+    "circelci-git-tag-deploy-test": "circelci-git-tag-deploy-test"
+  }
+}
