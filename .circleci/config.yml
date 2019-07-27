@@ -78,12 +78,12 @@ workflows:
             - setup
           filters:
             tags:
-              only: /^\d+\.\d+\.\d+$/
+              only: /^v\d+\.\d+\.\d+$/
       - deploy:
           requires:
             - run_test
           filters:
             tags:
-              only: /^\d+\.\d+\.\d+$/
+              only: /^v\d+\.\d+\.\d+$/
             branches:
               ignore: /.*/
